@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  trendradar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trendradar
+    restart: unless-stopped
+    environment:
+      # API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Telegram notifications
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      # Crawler settings
+      - CRAWLER_INTERVAL=${CRAWLER_INTERVAL:-3600}
+      - MAX_ARTICLES=${MAX_ARTICLES:-50}
+      - LANGUAGE=${LANGUAGE:-en}
+      # Storage
+      - DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    networks:
+      - trendradar-net
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # Optional: run crawler as a one-shot job instead of daemon
+  trendradar-crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trendradar-crawler
+    profiles:
+      - crawler
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - MAX_ARTICLES=${MAX_ARTICLES:-50}
+      - LANGUAGE=${LANGUAGE:-en}
+      - DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    networks:
+      - trendradar-net
+    command: python main.py --once
+
+networks:
+  trendradar-net:
+    driver: bridge
+
+volumes:
+  data:
